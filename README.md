@@ -1,3 +1,8 @@
+# Notice:
+This repo has been deprecated, please goto https://github.com/lwfinger/rtl8188eu
+for future updates.
+
+
 # rpi-rtl8188eu
 
 Linux driver for tplink-wn725n nano wireless adapter.
