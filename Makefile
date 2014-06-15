@@ -38,7 +38,7 @@ CONFIG_BT_COEXIST = n
 CONFIG_RTL8192CU_REDEFINE_1X1 = n
 CONFIG_INTEL_WIDI = n
 
-CONFIG_PLATFORM_I386_PC = y
+CONFIG_PLATFORM_I386_PC = n
 CONFIG_PLATFORM_ANDROID_X86 = n
 CONFIG_PLATFORM_ARM_S3C2K4 = n
 CONFIG_PLATFORM_ARM_PXA2XX = n
@@ -64,6 +64,7 @@ CONFIG_PLATFORM_TI_DM365 = n
 CONFIG_PLATFORM_MSTAR_TITANIA12 = n
 CONFIG_PLATFORM_SZEBOOK = n
 CONFIG_PLATFORM_ARM_SUN4I = n
+CONFIG_PLATFORM_BCM2835 = y
 
 CONFIG_DRVEXT_MODULE = n
 
@@ -530,6 +531,17 @@ CROSS_COMPILE := arm-none-linux-gnueabi-
 KVER  := 3.0.8
 #KSRC:= ../lichee/linux-3.0/
 endif
+
+ifeq ($(CONFIG_PLATFORM_BCM2835), y)
+EXTRA_CFLAGS += -DCONFIG_LITTLE_ENDIAN
+ARCH = arm
+CROSS_COMPILE = arm-linux-gnueabihf-
+CC=/home/rpi-tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian/bin/arm-linux-gnueabihf-gcc
+KVER  := 3.10.25+
+KSRC := /home/raspberrypi/raspberrypi-linux
+INSTALL_PREFIX := /home/raspberrypi/targetfs
+endif
+
 
 ifneq ($(KERNELRELEASE),)
 

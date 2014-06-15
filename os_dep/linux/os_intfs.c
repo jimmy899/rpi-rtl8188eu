@@ -18,6 +18,9 @@
  *
  ******************************************************************************/
 #define _OS_INTFS_C_
+#include <linux/sched.h>
+#include <linux/kallsyms.h>
+#include <linux/kthread.h>
 
 #include <drv_conf.h>
 
@@ -285,6 +288,8 @@ static int	rtw_proc_cnt = 0;
 
 void rtw_proc_init_one(struct net_device *dev)
 {
+#if 0
+{
 	struct proc_dir_entry *dir_dev = NULL;
 	struct proc_dir_entry *entry=NULL;
 	_adapter	*padapter = rtw_netdev_priv(dev);
@@ -313,7 +318,9 @@ void rtw_proc_init_one(struct net_device *dev)
 			_rtw_memcpy(rtw_proc_name, RTW_PROC_NAME, sizeof(RTW_PROC_NAME));
 		}		
 
-#if(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
+#if (LINUX_VERSION_CODE > KERNEL_VERSION(3,8,0))
+    rtw_proc = proc_mkdir(rtw_proc_name, NULL);
+#elif(LINUX_VERSION_CODE < KERNEL_VERSION(2,6,24))
 		rtw_proc=create_proc_entry(rtw_proc_name, S_IFDIR, proc_net);
 #else
 		rtw_proc=create_proc_entry(rtw_proc_name, S_IFDIR, init_net.proc_net);
@@ -323,7 +330,16 @@ void rtw_proc_init_one(struct net_device *dev)
 			return;
 		}
 
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+		{
+			struct file_operations verfops = {
+				read: proc_get_drv_version_fops_read,
+			};
+			entry = proc_create("ver_info", S_IFREG | S_IRUGO, rtw_proc, &verfops);
+		}
+#else
 		entry = create_proc_read_entry("ver_info", S_IFREG | S_IRUGO, rtw_proc, proc_get_drv_version, dev);				   
+#endif
 		if (!entry) {
 			DBG_871X("Unable to create_proc_read_entry!\n"); 
 			return;
@@ -334,9 +350,13 @@ void rtw_proc_init_one(struct net_device *dev)
 
 	if(padapter->dir_dev == NULL)
 	{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 10, 0))
+		padapter->dir_dev = proc_mkdir(dev->name, rtw_proc);
+#else
 		padapter->dir_dev = create_proc_entry(dev->name, 
 					  S_IFDIR | S_IRUGO | S_IXUGO, 
 					  rtw_proc);
+#endif
 
 		dir_dev = padapter->dir_dev;
 
@@ -567,8 +587,12 @@ void rtw_proc_init_one(struct net_device *dev)
 	entry->write_proc = proc_set_rssi_disp;
 
 }
+#endif
+}
 
 void rtw_proc_remove_one(struct net_device *dev)
+{
+#if 0
 {
 	struct proc_dir_entry *dir_dev = NULL;
 	_adapter	*padapter = rtw_netdev_priv(dev);
@@ -643,6 +667,8 @@ void rtw_proc_remove_one(struct net_device *dev)
 			rtw_proc = NULL;
 		}
 	}
+}
+#endif
 }
 #endif
 
@@ -974,6 +1000,7 @@ struct net_device *rtw_init_netdev(_adapter *old_padapter)
 u32 rtw_start_drv_threads(_adapter *padapter)
 {
 
+	struct task_struct* cmdThreadTask = NULL;
 	u32 _status = _SUCCESS;
 
 	RT_TRACE(_module_os_intfs_c_,_drv_info_,("+rtw_start_drv_threads\n"));
@@ -989,7 +1016,13 @@ u32 rtw_start_drv_threads(_adapter *padapter)
 		_status = _FAIL;	
 #endif
 
-	padapter->cmdThread = kernel_thread(rtw_cmd_thread, padapter, CLONE_FS|CLONE_FILES);
+	// padapter->cmdThread = kernel_thread(rtw_cmd_thread, padapter, CLONE_FS|CLONE_FILES);
+	cmdThreadTask = kthread_run(rtw_cmd_thread, (void*) padapter, "rtw_cmd_thread%d", 0);
+	if (cmdThreadTask != NULL) {
+		padapter->cmdThread = cmdThreadTask->pid;
+	} else {
+		padapter->cmdThread = -1;
+	}
 	if(padapter->cmdThread < 0)
 		_status = _FAIL;
 	else
